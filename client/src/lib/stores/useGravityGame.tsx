@@ -154,7 +154,7 @@ export const useGravityGame = create<GravityGameState>((set, get) => ({
   selectedPlanet: "earth",
   playerMass: 70,
   isJumping: false,
-  jumpVelocity: 8,
+  jumpVelocity: 2.7,
 
   setSelectedPlanet: (planet) => set({ selectedPlanet: planet }),
   setPlayerMass: (mass) => {
