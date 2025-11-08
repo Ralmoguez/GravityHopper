@@ -38,7 +38,7 @@ export function ComparisonChart({ onClose }: ComparisonChartProps) {
         </div>
 
         <p className="text-sm text-gray-700 mb-6">
-          Compare how high you can jump on different planets with the same initial jump velocity (8 m/s).
+          Compare how high you can jump on different planets with the same initial jump velocity (2.7 m/s).
           Lower gravity means higher jumps!
         </p>
 
@@ -78,7 +78,7 @@ export function ComparisonChart({ onClose }: ComparisonChartProps) {
             Maximum Height = v² / (2g)
           </p>
           <p className="text-xs text-gray-700 mt-2">
-            Where v is initial velocity (8 m/s) and g is gravitational acceleration
+            Where v is initial velocity (2.7 m/s) and g is gravitational acceleration
           </p>
         </div>
       </Card>
