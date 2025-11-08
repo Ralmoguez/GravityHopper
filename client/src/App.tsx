@@ -2,6 +2,7 @@ import { KeyboardControls } from "@react-three/drei";
 import { useEffect, useState } from "react";
 import { GameScene } from "./components/GameScene";
 import { GameUI } from "./components/GameUI";
+import { SoundManager } from "./components/SoundManager";
 import "@fontsource/inter";
 
 enum Controls {
@@ -25,6 +26,7 @@ function App() {
         <KeyboardControls map={controls}>
           <GameScene />
           <GameUI />
+          <SoundManager />
         </KeyboardControls>
       )}
     </div>

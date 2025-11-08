@@ -1,23 +1,75 @@
+import { useState } from "react";
 import { useGravityGame, PLANETS } from "@/lib/stores/useGravityGame";
+import { useAudio } from "@/lib/stores/useAudio";
 import { Card } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Button } from "./ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Volume2, VolumeX, Info, BarChart3 } from "lucide-react";
+import { ComparisonChart } from "./ComparisonChart";
 
 export function GameUI() {
   const { selectedPlanet, playerMass, setSelectedPlanet, setPlayerMass, getCurrentPlanet, getWeight } = useGravityGame();
+  const { isMuted, toggleMute } = useAudio();
+  const [showComparison, setShowComparison] = useState(false);
   
   const planet = getCurrentPlanet();
   const weight = getWeight();
 
   return (
-    <div className="absolute top-4 left-4 z-10 space-y-4 max-w-sm">
-      <Card className="p-6 bg-white/95 backdrop-blur shadow-xl">
-        <h1 className="text-2xl font-bold mb-4 text-gray-900">Gravity Jump</h1>
+    <>
+      {showComparison && <ComparisonChart onClose={() => setShowComparison(false)} />}
+      
+      <div className="absolute top-4 left-4 z-10 space-y-4 max-w-sm">
+        <Card className="p-6 bg-white/95 backdrop-blur shadow-xl">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold text-gray-900">Gravity Jump</h1>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowComparison(true)}
+                className="text-gray-900"
+                title="Compare jump heights"
+              >
+                <BarChart3 className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleMute}
+                className="text-gray-900"
+                title={isMuted ? "Unmute sounds" : "Mute sounds"}
+              >
+                {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              </Button>
+            </div>
+          </div>
         
         <div className="space-y-4">
           <div>
-            <Label htmlFor="planet-select" className="text-gray-900 font-semibold">Select Planet</Label>
+            <div className="flex items-center gap-2 mb-1">
+              <Label htmlFor="planet-select" className="text-gray-900 font-semibold">Select Planet</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
+                      <Info className="h-4 w-4 text-blue-600" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-sm bg-white text-gray-900 p-4">
+                    <div className="space-y-2">
+                      <h4 className="font-bold">{planet.name}</h4>
+                      <p className="text-xs"><span className="font-semibold">Mass:</span> {planet.mass}</p>
+                      <p className="text-xs"><span className="font-semibold">Radius:</span> {planet.radius}</p>
+                      <p className="text-xs mt-2">{planet.scientificExplanation}</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Select value={selectedPlanet} onValueChange={setSelectedPlanet}>
               <SelectTrigger id="planet-select" className="mt-1 bg-white text-gray-900">
                 <SelectValue />
@@ -72,6 +124,7 @@ export function GameUI() {
           <p>🌍 Try different planets to see how gravity affects your jump height!</p>
         </div>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }
