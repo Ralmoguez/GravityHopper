@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGravityGame, PLANETS } from "@/lib/stores/useGravityGame";
@@ -10,50 +10,43 @@ enum Controls {
 
 export function Astronaut() {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { selectedPlanet, isJumping, setIsJumping } = useGravityGame();
-  const [velocity, setVelocity] = useState(0);
-  const [position, setPosition] = useState(0);
-  const [subscribe, getState] = useKeyboardControls<Controls>();
+  const { selectedPlanet, setIsJumping } = useGravityGame();
+  const velocityRef = useRef(0);
+  const positionRef = useRef(0);
+  const [, getState] = useKeyboardControls<Controls>();
 
   const planet = PLANETS[selectedPlanet];
   const gravity = planet.gravity;
 
   useEffect(() => {
-    const unsubscribe = subscribe(
-      (state) => state.jump,
-      (pressed) => {
-        if (pressed && !isJumping && position <= 0.01) {
-          console.log(`Jump initiated on ${planet.name}! Gravity: ${gravity}`);
-          const jumpVelocity = 8;
-          setVelocity(jumpVelocity);
-          setIsJumping(true);
-        }
-      }
-    );
-    return unsubscribe;
-  }, [subscribe, isJumping, position, gravity, planet.name, setIsJumping]);
-
-  useEffect(() => {
-    setPosition(0);
-    setVelocity(0);
+    positionRef.current = 0;
+    velocityRef.current = 0;
     setIsJumping(false);
+    if (meshRef.current) {
+      meshRef.current.position.y = 0.5;
+    }
   }, [selectedPlanet, setIsJumping]);
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
 
-    if (isJumping || position > 0) {
-      const newVelocity = velocity - gravity * delta;
-      setVelocity(newVelocity);
+    const controls = getState();
+    
+    if (controls.jump && positionRef.current <= 0.01 && velocityRef.current <= 0) {
+      console.log(`Jump initiated on ${planet.name}! Gravity: ${gravity}`);
+      velocityRef.current = 8;
+      setIsJumping(true);
+    }
 
-      const newPosition = Math.max(0, position + newVelocity * delta);
-      setPosition(newPosition);
+    if (positionRef.current > 0 || velocityRef.current > 0) {
+      velocityRef.current -= gravity * delta;
+      positionRef.current = Math.max(0, positionRef.current + velocityRef.current * delta);
 
-      meshRef.current.position.y = newPosition + 0.5;
+      meshRef.current.position.y = positionRef.current + 0.5;
 
-      if (newPosition <= 0 && velocity < 0) {
-        setPosition(0);
-        setVelocity(0);
+      if (positionRef.current <= 0 && velocityRef.current < 0) {
+        positionRef.current = 0;
+        velocityRef.current = 0;
         setIsJumping(false);
         meshRef.current.position.y = 0.5;
       }
