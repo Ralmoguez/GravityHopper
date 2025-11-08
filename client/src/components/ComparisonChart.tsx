@@ -1,4 +1,4 @@
-import { PLANETS } from "@/lib/stores/useGravityGame";
+import { PLANETS, useGravityGame } from "@/lib/stores/useGravityGame";
 import { Card } from "./ui/card";
 import { X } from "lucide-react";
 import { Button } from "./ui/button";
@@ -8,14 +8,16 @@ interface ComparisonChartProps {
 }
 
 export function ComparisonChart({ onClose }: ComparisonChartProps) {
-  const jumpVelocity = 8;
-  
+  const { jumpVelocity, selectedPlanet } = useGravityGame();
+  const earthGravity = PLANETS.earth.gravity;
+
   const jumpHeights = Object.entries(PLANETS).map(([key, planet]) => ({
     key,
     name: planet.name,
     gravity: planet.gravity,
     maxHeight: (jumpVelocity * jumpVelocity) / (2 * planet.gravity),
-    color: planet.color
+    color: planet.color,
+    gravityRatio: planet.gravity / earthGravity,
   }));
 
   const maxJumpHeight = Math.max(...jumpHeights.map(p => p.maxHeight));
@@ -42,13 +44,19 @@ export function ComparisonChart({ onClose }: ComparisonChartProps) {
 
         <div className="space-y-3">
           {jumpHeights.map((planet) => (
-            <div key={planet.key} className="space-y-1">
+            <div
+              key={planet.key}
+              className={`space-y-1 rounded-lg p-2 transition shadow-sm ${
+                selectedPlanet === planet.key ? "bg-blue-100 border border-blue-300" : ""
+              }`}
+            >
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-900">{planet.name}</span>
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-gray-700 text-right">
                   {planet.maxHeight.toFixed(2)}m ({planet.gravity.toFixed(2)} m/s²)
                 </span>
               </div>
+              <p className="text-xs text-gray-600">{planet.gravityRatio.toFixed(2)} × Earth's gravity</p>
               <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
                 <div
                   className="h-full rounded-full flex items-center justify-end pr-2 text-white text-xs font-bold transition-all duration-500"

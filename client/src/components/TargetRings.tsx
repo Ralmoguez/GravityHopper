@@ -10,21 +10,20 @@ interface Target {
 }
 
 export function TargetRings({ astronautY }: { astronautY: number }) {
-  const { getCurrentPlanet } = useGravityGame();
+  const { getCurrentPlanet, jumpVelocity } = useGravityGame();
   const planet = getCurrentPlanet();
   const groupRef = useRef<THREE.Group>(null);
   
   const targetHeights = useMemo(() => {
-    const jumpVelocity = 8;
     const gravity = planet.gravity;
     const maxHeight = (jumpVelocity * jumpVelocity) / (2 * gravity);
-    
+
     return [
       maxHeight * 0.3,
       maxHeight * 0.6,
       maxHeight * 0.9
     ];
-  }, [planet.gravity]);
+  }, [planet.gravity, jumpVelocity]);
 
   const [targets, setTargets] = useState<Target[]>(
     targetHeights.map(height => ({ height, collected: false, ring: null }))
