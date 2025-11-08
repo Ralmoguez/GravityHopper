@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useEffect } from "react";
+import { MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGravityGame } from "@/lib/stores/useGravityGame";
@@ -9,14 +9,20 @@ interface Target {
   ring: THREE.Mesh | null;
 }
 
-export function TargetRings({ astronautY }: { astronautY: number }) {
+interface TargetRingsProps {
+  astronautYRef: MutableRefObject<number>;
+  groundOffset: number;
+}
+
+export function TargetRings({ astronautYRef, groundOffset }: TargetRingsProps) {
   const { getCurrentPlanet, jumpVelocity } = useGravityGame();
   const planet = getCurrentPlanet();
   const groupRef = useRef<THREE.Group>(null);
-  
+  const targetsRef = useRef<Target[]>([]);
+
   const targetHeights = useMemo(() => {
     const gravity = planet.gravity;
-    const maxHeight = (jumpVelocity * jumpVelocity) / (2 * gravity);
+    const maxHeight = gravity > 0 ? (jumpVelocity * jumpVelocity) / (2 * gravity) : 0;
 
     return [
       maxHeight * 0.3,
@@ -25,29 +31,40 @@ export function TargetRings({ astronautY }: { astronautY: number }) {
     ];
   }, [planet.gravity, jumpVelocity]);
 
-  const [targets, setTargets] = useState<Target[]>(
-    targetHeights.map(height => ({ height, collected: false, ring: null }))
-  );
+  const [targets, setTargets] = useState<Target[]>(() => {
+    const initialTargets = targetHeights.map(height => ({ height, collected: false, ring: null }));
+    targetsRef.current = initialTargets;
+    return initialTargets;
+  });
 
   useEffect(() => {
-    setTargets(targetHeights.map(height => ({ height, collected: false, ring: null })));
-    console.log(`Target rings reset for ${planet.name} at heights:`, targetHeights.map(h => h.toFixed(2) + 'm'));
+    const nextTargets = targetHeights.map(height => ({ height, collected: false, ring: null }));
+    targetsRef.current = nextTargets;
+    setTargets(nextTargets);
   }, [targetHeights, planet.name]);
 
-  useFrame((state) => {
+  useEffect(() => {
+    targetsRef.current = targets;
+  }, [targets]);
+
+  useFrame(state => {
     if (!groupRef.current) return;
 
     groupRef.current.children.forEach((child, index) => {
       if (child instanceof THREE.Mesh) {
         child.rotation.y = state.clock.elapsedTime * 0.5;
-        
-        const target = targets[index];
-        if (!target.collected && astronautY >= target.height - 0.3 && astronautY <= target.height + 0.3) {
+
+        const target = targetsRef.current[index];
+        if (!target) {
+          return;
+        }
+        const targetCenter = target.height + groundOffset;
+        const astronautY = astronautYRef.current;
+        if (!target.collected && astronautY >= targetCenter - 0.3 && astronautY <= targetCenter + 0.3) {
           setTargets(prev => {
             const newTargets = [...prev];
             if (!newTargets[index].collected) {
               newTargets[index].collected = true;
-              console.log(`Target ${index + 1} collected at height ${target.height.toFixed(2)}m!`);
             }
             return newTargets;
           });
@@ -59,7 +76,7 @@ export function TargetRings({ astronautY }: { astronautY: number }) {
   return (
     <group ref={groupRef}>
       {targets.map((target, index) => (
-        <mesh key={index} position={[0, target.height + 0.5, 0]}>
+        <mesh key={index} position={[0, target.height + groundOffset, 0]}>
           <torusGeometry args={[0.8, 0.15, 16, 32]} />
           <meshStandardMaterial
             color={target.collected ? "#4CAF50" : "#FFC107"}

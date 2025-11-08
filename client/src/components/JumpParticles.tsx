@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { MutableRefObject, useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGravityGame } from "@/lib/stores/useGravityGame";
@@ -10,44 +10,72 @@ interface Particle {
   maxLife: number;
 }
 
-export function JumpParticles({ astronautY }: { astronautY: number }) {
+interface JumpParticlesProps {
+  astronautYRef: MutableRefObject<number>;
+  groundOffset: number;
+}
+
+export function JumpParticles({ astronautYRef, groundOffset }: JumpParticlesProps) {
   const { getCurrentPlanet } = useGravityGame();
   const planet = getCurrentPlanet();
   const particlesRef = useRef<THREE.Points>(null);
   const particlesDataRef = useRef<Particle[]>([]);
-  const lastYRef = useRef(astronautY);
+  const lastYRef = useRef(astronautYRef.current);
   const maxParticles = 50;
 
   const particleGeometry = useMemo(() => new THREE.BufferGeometry(), []);
   const positions = useMemo(() => new Float32Array(maxParticles * 3), []);
   const colors = useMemo(() => new Float32Array(maxParticles * 3), []);
 
-  useMemo(() => {
-    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  useEffect(() => {
+    particleGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+    return () => {
+      particleGeometry.dispose();
+    };
   }, [particleGeometry, positions, colors]);
 
-  const particleMaterial = useMemo(
-    () =>
-      new THREE.PointsMaterial({
-        size: 0.15,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending,
-      }),
-    []
-  );
+  const particleMaterial = useMemo(() => {
+    const material = new THREE.PointsMaterial({
+      size: 0.15,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending,
+    });
 
-  useFrame((state, delta) => {
+    return material;
+  }, []);
+
+  useEffect(() => () => {
+    particleMaterial.dispose();
+  }, [particleMaterial]);
+
+  const planetTrailColor = useMemo(() => new THREE.Color(planet.color), [planet.color]);
+
+  useEffect(() => {
+    particlesDataRef.current = [];
+    positions.fill(0);
+    colors.fill(0);
+
+    const positionAttr = particleGeometry.getAttribute("position");
+    const colorAttr = particleGeometry.getAttribute("color");
+    if (positionAttr) positionAttr.needsUpdate = true;
+    if (colorAttr) colorAttr.needsUpdate = true;
+
+    lastYRef.current = astronautYRef.current;
+  }, [planet.name, planet.color, planet.groundColor, groundOffset, astronautYRef, particleGeometry, positions, colors]);
+
+  useFrame((_, delta) => {
     if (!particlesRef.current) return;
 
-    const wasDescending = lastYRef.current > astronautY && astronautY > 0.1;
-    const justLanded = lastYRef.current > 0.5 && astronautY <= 0.5;
+    const astronautY = astronautYRef.current;
+    const landingThreshold = groundOffset + 0.05;
+    const justLanded = lastYRef.current > landingThreshold && astronautY <= landingThreshold;
     lastYRef.current = astronautY;
 
     if (justLanded && particlesDataRef.current.length < maxParticles - 10) {
-      const planetColorRGB = new THREE.Color(planet.groundColor);
       for (let i = 0; i < 10; i++) {
         const angle = (Math.PI * 2 * i) / 10;
         const speed = 1 + Math.random() * 1.5;
@@ -72,18 +100,17 @@ export function JumpParticles({ astronautY }: { astronautY: number }) {
       particle.life -= delta;
       if (particle.life > 0) {
         particle.velocity.y -= 5 * delta;
-        particle.position.add(particle.velocity.clone().multiplyScalar(delta));
+        particle.position.addScaledVector(particle.velocity, delta);
 
         const idx = i * 3;
         positions[idx] = particle.position.x;
         positions[idx + 1] = Math.max(particle.position.y, 0.05);
         positions[idx + 2] = particle.position.z;
 
-        const planetColorRGB = new THREE.Color(planet.color);
         const alpha = particle.life / particle.maxLife;
-        colors[idx] = planetColorRGB.r * alpha;
-        colors[idx + 1] = planetColorRGB.g * alpha;
-        colors[idx + 2] = planetColorRGB.b * alpha;
+        colors[idx] = planetTrailColor.r * alpha;
+        colors[idx + 1] = planetTrailColor.g * alpha;
+        colors[idx + 2] = planetTrailColor.b * alpha;
       } else {
         const idx = i * 3;
         positions[idx] = 0;
@@ -98,5 +125,7 @@ export function JumpParticles({ astronautY }: { astronautY: number }) {
     particleGeometry.attributes.color.needsUpdate = true;
   });
 
-  return <points ref={particlesRef} geometry={particleGeometry} material={particleMaterial} />;
+  return (
+    <points ref={particlesRef} geometry={particleGeometry} material={particleMaterial} />
+  );
 }
