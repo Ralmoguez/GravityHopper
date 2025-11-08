@@ -4,6 +4,7 @@ import { users, type User, type InsertUser } from "@shared/schema";
 // you might need
 
 export interface IStorage {
+  listUsers(): Promise<User[]>;
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -16,6 +17,10 @@ export class MemStorage implements IStorage {
   constructor() {
     this.users = new Map();
     this.currentId = 1;
+  }
+
+  async listUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
   }
 
   async getUser(id: number): Promise<User | undefined> {

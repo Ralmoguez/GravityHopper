@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGravityGame, PLANETS } from "@/lib/stores/useGravityGame";
 import { useAudio } from "@/lib/stores/useAudio";
 import { Card } from "./ui/card";
@@ -11,12 +11,68 @@ import { Volume2, VolumeX, Info, BarChart3 } from "lucide-react";
 import { ComparisonChart } from "./ComparisonChart";
 
 export function GameUI() {
-  const { selectedPlanet, playerMass, setSelectedPlanet, setPlayerMass, getCurrentPlanet, getWeight } = useGravityGame();
+  const {
+    selectedPlanet,
+    playerMass,
+    setSelectedPlanet,
+    setPlayerMass,
+    getCurrentPlanet,
+    getWeight,
+    getEarthWeight,
+    getGravityRatio,
+    getJumpHeight,
+    getHangTime,
+  } = useGravityGame();
   const { isMuted, toggleMute } = useAudio();
   const [showComparison, setShowComparison] = useState(false);
-  
+  const [massInput, setMassInput] = useState(playerMass.toString());
+
   const planet = getCurrentPlanet();
   const weight = getWeight();
+  const earthWeight = getEarthWeight();
+  const gravityRatio = getGravityRatio();
+  const jumpHeight = getJumpHeight();
+  const hangTime = getHangTime();
+  const weightRatio = earthWeight === 0 ? 0 : weight / earthWeight;
+  const weightDifference = weight - earthWeight;
+  const weightDescriptor = weightRatio >= 1 ? "heavier" : "lighter";
+  const maxWeight = Math.max(weight, earthWeight);
+  const massWarning = massInput.trim() === "";
+
+  useEffect(() => {
+    setMassInput(playerMass.toString());
+  }, [playerMass]);
+
+  const handleMassChange = (value: string) => {
+    if (value.length > 6) return;
+    setMassInput(value);
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed) && parsed >= 1) {
+      setPlayerMass(parsed);
+    }
+  };
+
+  const handleMassBlur = () => {
+    const parsed = Number(massInput);
+    if (Number.isNaN(parsed) || parsed < 1) {
+      setMassInput(playerMass.toString());
+      return;
+    }
+
+    const clamped = Math.min(Math.max(parsed, 1), 500);
+    setPlayerMass(clamped);
+    setMassInput(clamped.toString());
+  };
+
+  const weightComparison = useMemo(() => {
+    if (maxWeight === 0) {
+      return { earth: 0, planet: 0 };
+    }
+    return {
+      earth: (earthWeight / maxWeight) * 100,
+      planet: (weight / maxWeight) * 100,
+    };
+  }, [earthWeight, maxWeight, weight]);
 
   return (
     <>
@@ -85,32 +141,75 @@ export function GameUI() {
             <p className="text-sm text-gray-700 mt-1">{planet.description}</p>
           </div>
 
-          <div>
-            <Label htmlFor="mass-input" className="text-gray-900 font-semibold">Your Mass (kg)</Label>
+          <div className="space-y-2">
+            <Label htmlFor="mass-input" className="text-gray-900 font-semibold flex items-center justify-between">
+              Your Mass (kg)
+              <span className="text-xs font-normal text-gray-500">Mass never changes between planets</span>
+            </Label>
             <Input
               id="mass-input"
               type="number"
               min="1"
-              max="200"
-              value={playerMass}
-              onChange={(e) => setPlayerMass(Number(e.target.value) || 70)}
-              className="mt-1 bg-white text-gray-900"
+              max="500"
+              step="0.5"
+              value={massInput}
+              onChange={(e) => handleMassChange(e.target.value)}
+              onBlur={handleMassBlur}
+              className="bg-white text-gray-900"
+              placeholder="Enter your mass in kg"
             />
+            {massWarning && (
+              <p className="text-xs text-amber-600">Enter a positive value to update the simulation.</p>
+            )}
           </div>
 
-          <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-            <h3 className="font-semibold text-gray-900 mb-2">Physics Info</h3>
-            <div className="space-y-1 text-sm text-gray-800">
-              <p><span className="font-semibold">Planet:</span> {planet.name}</p>
-              <p><span className="font-semibold">Gravity:</span> {planet.gravity.toFixed(2)} m/s²</p>
-              <p><span className="font-semibold">Mass:</span> {playerMass} kg</p>
-              <p><span className="font-semibold">Weight:</span> {weight.toFixed(2)} N</p>
+          <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200 space-y-3">
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-1">Physics Info</h3>
+              <div className="space-y-1 text-sm text-gray-800">
+                <p><span className="font-semibold">Planet:</span> {planet.name}</p>
+                <p><span className="font-semibold">Gravity:</span> {planet.gravity.toFixed(2)} m/s² ({gravityRatio.toFixed(2)}× Earth's g)</p>
+                <p><span className="font-semibold">Mass:</span> {playerMass.toFixed(1)} kg</p>
+                <p><span className="font-semibold">Weight here:</span> {weight.toFixed(2)} N</p>
+                <p><span className="font-semibold">Weight on Earth:</span> {earthWeight.toFixed(2)} N</p>
+                <p><span className="font-semibold">Jump height:</span> {jumpHeight.toFixed(2)} m</p>
+                <p><span className="font-semibold">Hang time:</span> {hangTime.toFixed(2)} s</p>
+              </div>
             </div>
-            <div className="mt-3 p-3 bg-white rounded border border-blue-300">
-              <p className="text-xs font-mono text-gray-900">W = m × g</p>
+
+            <div className="p-3 bg-white rounded border border-blue-300 space-y-2">
+              <div className="flex items-center justify-between text-xs font-mono text-gray-900">
+                <span>W = m × g</span>
+                <span>{weight.toFixed(2)} N</span>
+              </div>
               <p className="text-xs font-mono text-gray-900">
-                {weight.toFixed(2)} N = {playerMass} kg × {planet.gravity.toFixed(2)} m/s²
+                {weight.toFixed(2)} N = {playerMass.toFixed(1)} kg × {planet.gravity.toFixed(2)} m/s²
               </p>
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Earth</span>
+                  <span>{earthWeight.toFixed(1)} N</span>
+                </div>
+                <div className="h-2 w-full bg-blue-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500"
+                    style={{ width: `${weightComparison.earth}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>{planet.name}</span>
+                  <span>{weight.toFixed(1)} N</span>
+                </div>
+                <div className="h-2 w-full bg-purple-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-purple-500"
+                    style={{ width: `${weightComparison.planet}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-700">
+                  You feel {Math.abs(weightDifference).toFixed(1)} N {weightDescriptor} than on Earth.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -120,6 +219,7 @@ export function GameUI() {
         <h3 className="font-semibold text-gray-900 mb-2">How to Play</h3>
         <div className="text-sm text-gray-800 space-y-1">
           <p>🚀 Press <kbd className="px-2 py-1 bg-white rounded border border-gray-400 font-bold">SPACEBAR</kbd> to jump!</p>
+          <p>⚖️ Your mass stays the same everywhere, but weight changes with gravity.</p>
           <p>📊 Lower gravity = Higher jumps</p>
           <p>🌍 Try different planets to see how gravity affects your jump height!</p>
         </div>

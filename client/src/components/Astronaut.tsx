@@ -13,7 +13,7 @@ enum Controls {
 
 export function Astronaut() {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { selectedPlanet, setIsJumping } = useGravityGame();
+  const { selectedPlanet, setIsJumping, jumpVelocity } = useGravityGame();
   const { playHit, playSuccess } = useAudio();
   const velocityRef = useRef(0);
   const positionRef = useRef(0);
@@ -32,7 +32,7 @@ export function Astronaut() {
     if (meshRef.current) {
       meshRef.current.position.y = 0.5;
     }
-  }, [selectedPlanet, setIsJumping]);
+  }, [selectedPlanet, setIsJumping, jumpVelocity]);
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
@@ -41,7 +41,7 @@ export function Astronaut() {
     
     if (controls.jump && positionRef.current <= 0.01 && velocityRef.current <= 0) {
       console.log(`Jump initiated on ${planet.name}! Gravity: ${gravity}`);
-      velocityRef.current = 8;
+      velocityRef.current = jumpVelocity;
       setIsJumping(true);
       playHit();
       wasOnGroundRef.current = false;
